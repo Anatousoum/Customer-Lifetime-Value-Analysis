@@ -1,0 +1,77 @@
+## Let's load and explore the data
+Target.df<-read.csv("WA_Fn-UseC_-Marketing-Customer-Value-Analysis.csv")
+library(stargazer)
+stargazer(as.data.frame(Target.df), type = "text")
+library(ggplot2)
+library(stats)
+library(dplyr)
+library(stringr)
+library(reshape2)
+library(rpart)
+str(Target.df)
+#3 Let's see how much response we actually have by offer 
+table(Target.df$Response,Target.df$Renew.Offer.Type)/nrow(Target.df*100)
+ResVSNoP<-table(Target.df$Response,Target.df$Number.of.Policies)/nrow(Target.df)
+print(ResVSNoP)
+table(Target.df$Response,Target.df$Sales.Channel) ## We get the more Yes when we have agent inlvolved 
+table(Target.df$Response,Target.df$Marital.Status)/nrow(Target.df)*100 ## Married people give more positive response 
+table(Target.df$Response)/nrow(Target.df)*100
+table(Target.df$Response,Target.df$Location.Code)/nrow(Target.df)*100
+boxplot(Target.df$Response~Target.df$Sales.Channel,data=Target.df, main="Response study", 
+        xlab="Response", ylab="Sales Channel")
+colnames(Target.df) <- c("CustomerID", "State", "Customer_LT_Value", "Response", 
+                             "Coverage", "Education", "Effective_Date", "Employment",
+                             "Gender", "Income", "Location", "Marital_Status", "Monthly_Auto_Premium",
+                             "Months_Last_Claim", "Months_Policy_Inception", "Open_Complaints",
+                             "Policies", "Policy_Type", "Policy", "Renew_Offer", "Sales_Channel",
+                             "Total_Claim_Amount", "Vehicle_Class", "Vehicle_Size")
+Target.df<-Target.df[ ,c(-1, -2, -7, -18, -24)]
+
+#### 1. Engagement Rate ####
+# Encode Response as 0s and 1s
+Target.df$Engaged <- as.integer(Target.df$Response) - 1
+engagementRate <- Target.df %>% 
+  group_by(Engaged) %>% 
+  summarise(Count=n()) %>%
+  mutate(Percentage=Count/nrow(Target.df)*100.0)
+engagementRate
+# Transpose
+transposed <- t(engagementRate)
+colnames(transposed) <- engagementRate$Engaged
+transposed <- transposed[-1,]
+transposed
+
+##Let's patition our dataset in training and validation set . 
+## we want 1st to use Naive bayes classifier to study the engagement s/t type of coverage, Marital status, employment status, Location, Renew offer and sales channel 
+selected.var<- c(3,5,8,9,16,17,20)
+target2.df<-Target.df
+train.index<-sample(c(1:dim(target2.df)[1]),dim(target2.df)[1]*0.7)
+train.df<-target2.df[train.index,selected.var]
+valid.df<-target2.df[-train.index,selected.var]
+
+#run naive bayes
+library(e1071)
+target2.nb<-naiveBayes(as.factor(Engaged)~., data = train.df)
+target2.nb
+
+#predict probabilities
+pred.probabilities<-predict(target2.nb, newdata = valid.df, type = "raw")
+#predict class
+pred.class<-predict(target2.nb, newdata = valid.df)
+df<-data.frame(actual = valid.df$Engaged, predicted = pred.class, pred.probabilities)
+
+
+##Confusion matrix
+pred.class1<-predict(target2.nb, newdata = train.df)
+install.packages("caret")
+library(caret)
+#training
+confusionMatrix(pred.class1, train.df$Engaged)
+confusionMatrix(table(pred.class1, train.df$Engaged))
+
+#validation
+pred.class2<-predict(target2.nb, newdata = valid.df)
+confusionMatrix(table(pred.class2, valid.df$Engaged))
+
+ 
+
