@@ -7,4 +7,4 @@ AutoOne is car insurance company across the United States. The company commercia
 
 Business purpose: Determine which client respond to offer proposed by the company and allow a segmented marketing 
 
-Softare used : R , Tableau and Tableau Prep
+Software used : R , Tableau and Tableau Prep
